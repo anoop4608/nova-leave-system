@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova Admin Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg">
+
+<div class="header">
+  <div class="header-left">
+    <img src="nova_logo.png" class="logo-small">
+    <div>
+      <h3>NOVA GRAPHICS LLP</h3>
+      <span class="subtitle">Admin Dashboard Pro</span>
+    </div>
+  </div>
+
+  <button class="danger-btn" onclick="logoutUser()">Logout</button>
+</div>
+
+<div class="glass-card">
+
+  <h2>Leave Requests</h2>
+
+  <input id="filterEmp" placeholder="Filter by Employee ID"
+         onkeyup="loadLeaves()">
+
+  <table class="pro-table">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Days</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="leaveTableBody"></tbody>
+  </table>
+
+</div>
+
+<script type="module" src="admin.js"></script>
+<script type="module" src="auth.js"></script>
+
+</body>
+</html>

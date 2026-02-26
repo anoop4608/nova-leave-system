@@ -2,32 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Nova Admin Dashboard</title>
+<title>Nova Admin Dashboard Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="bg">
+<body>
 
 <div class="header">
-  <div class="header-left">
-    <img src="nova_logo.png" class="logo-small">
-    <div>
-      <h3>NOVA GRAPHICS LLP</h3>
-      <span class="subtitle">Admin Dashboard Pro</span>
-    </div>
+  <img src="nova_logo.png">
+  <div>
+    <h2>NOVA GRAPHICS LLP</h2>
+    <p>Admin Dashboard Pro</p>
   </div>
-
-  <button class="danger-btn" onclick="logoutUser()">Logout</button>
+  <button onclick="logout()" class="logout">Logout</button>
 </div>
 
-<div class="glass-card">
+<div class="stats">
+  <div class="stat-card">Pending: <span id="pCount">0</span></div>
+  <div class="stat-card">Approved: <span id="aCount">0</span></div>
+  <div class="stat-card">Rejected: <span id="rCount">0</span></div>
+</div>
 
-  <h2>Leave Requests</h2>
-
-  <input id="filterEmp" placeholder="Filter by Employee ID"
-         onkeyup="loadLeaves()">
-
-  <table class="pro-table">
+<div class="table-card">
+  <h3>Leave Requests</h3>
+  <table>
     <thead>
       <tr>
         <th>Employee</th>
@@ -38,13 +37,16 @@
         <th>Action</th>
       </tr>
     </thead>
-    <tbody id="leaveTableBody"></tbody>
+    <tbody id="leaveTable"></tbody>
   </table>
 
+  <button onclick="downloadPDF()" class="pdf-btn">Download PDF</button>
 </div>
 
-<script type="module" src="admin.js"></script>
-<script type="module" src="auth.js"></script>
-
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

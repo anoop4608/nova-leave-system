@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,6 +11,10 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
@@ -26,7 +31,7 @@
 
 <div class="container">
 
-  <!-- ===== KPI ===== -->
+  <!-- ===== KPI CARDS ===== -->
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-title">Pending Leaves</div>
@@ -44,9 +49,9 @@
     </div>
   </div>
 
-  <!-- ===== TABLE ===== -->
+  <!-- ===== LEAVE MANAGEMENT ===== -->
   <div class="card">
-    <h2>Leave Management Center</h2>
+    <h2>🧾 Leave Management Center</h2>
 
     <table>
       <thead>
@@ -63,10 +68,46 @@
     </table>
   </div>
 
+  <!-- ===================================================== -->
+  <!-- 💰 SALARY & PAYSLIP ENGINE (ENTERPRISE PANEL) -->
+  <!-- ===================================================== -->
+  <div class="card">
+    <h2>💰 Salary & Payslip Engine</h2>
+
+    <div class="grid-3">
+      <select id="payEmp" onchange="updateOTRate()"></select>
+      <input type="month" id="payMonth">
+      <input type="number" id="otHours" placeholder="OT Hours">
+    </div>
+
+    <div class="grid-3" style="margin-top:12px;">
+      <select id="otType" onchange="updateOTRate()">
+        <option value="SALARY_BASED">OT — Salary Based</option>
+        <option value="RR_FIXED">OT — RR Fixed</option>
+      </select>
+
+      <input id="otRate" placeholder="OT Rate" readonly>
+
+      <input id="rrRate"
+             placeholder="Enter RR Rate"
+             style="display:none"
+             oninput="updateOTRate()">
+    </div>
+
+    <div style="margin-top:16px;">
+      <button class="btn btn-approve" onclick="generatePayroll()">
+        🚀 Generate Salary & Payslip
+      </button>
+    </div>
+  </div>
+
 </div>
 
+<!-- CORE SCRIPTS -->
 <script src="app.js"></script>
 <script src="admin.js"></script>
+<script src="hrms.js"></script>
 
 </body>
 </html>
+```

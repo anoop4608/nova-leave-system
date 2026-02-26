@@ -1,70 +1,106 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  doc,
-  updateDoc,
-  query,
-  where,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Firebase config already in app.js
+const db = firebase.firestore();
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBM3pHED3Zvc-Hn0LbjtiW_8p1yIqNCKs",
-  authDomain: "nova-leave-system.firebaseapp.com",
-  projectId: "nova-leave-system",
-  storageBucket: "nova-leave-system.firebasestorage.app",
-  messagingSenderId: "255794827622",
-  appId: "1:255794827622:web:604df9ac7df902c50278a7"
-};
+const TOTAL_LEAVE = 24; // annual leave
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+let allLeaves = [];
 
-window.loadLeaves = async function () {
-  const tbody = document.getElementById("leaveTableBody");
-  const filter = document.getElementById("filterEmp").value.trim();
-
-  tbody.innerHTML = "";
-
-  let q;
-
-  if (filter) {
-    q = query(collection(db, "leaves"), where("empId", "==", filter));
-  } else {
-    q = query(collection(db, "leaves"), orderBy("createdAt", "desc"));
+// AUTH GUARD
+firebase.auth().onAuthStateChanged(user=>{
+  if(!user){
+    window.location.href = "login.html";
+  }else{
+    loadLeaves();
   }
+});
 
-  const snap = await getDocs(q);
+// LOAD DATA
+function loadLeaves(){
+  db.collection("leaves")
+    .orderBy("created","desc")
+    .onSnapshot(snapshot=>{
 
-  snap.forEach(d => {
-    const data = d.data();
+      let html="";
+      let pending=0, approved=0, rejected=0;
+      let empMap={};
 
-    tbody.innerHTML += `
-      <tr>
-        <td>${data.empId}</td>
-        <td>${data.fromDate}</td>
-        <td>${data.toDate}</td>
-        <td>${data.days}</td>
-        <td><span class="status-${data.status.toLowerCase()}">${data.status}</span></td>
-        <td>
-          <button class="primary-btn" onclick="approveLeave('${d.id}')">Approve</button>
-          <button class="danger-btn" onclick="rejectLeave('${d.id}')">Reject</button>
-        </td>
-      </tr>
-    `;
+      snapshot.forEach(doc=>{
+        const d = doc.data();
+        const id = doc.id;
+
+        allLeaves.push({...d,id});
+
+        if(d.status==="Pending") pending++;
+        if(d.status==="Approved") approved++;
+        if(d.status==="Rejected") rejected++;
+
+        if(!empMap[d.empId]) empMap[d.empId]=0;
+        if(d.status==="Approved") empMap[d.empId]+=Number(d.days);
+
+        const used = empMap[d.empId];
+        const balance = TOTAL_LEAVE - used;
+
+        html += `
+        <tr>
+          <td>${d.empId}</td>
+          <td>${d.fromDate}</td>
+          <td>${d.toDate}</td>
+          <td>${d.days}</td>
+          <td class="status-${d.status.toLowerCase()}">${d.status}</td>
+          <td>${used}</td>
+          <td>${balance}</td>
+          <td>
+            <button class="action-btn approve" onclick="updateStatus('${id}','Approved')">Approve</button>
+            <button class="action-btn reject" onclick="updateStatus('${id}','Rejected')">Reject</button>
+          </td>
+        </tr>`;
+      });
+
+      leaveTable.innerHTML = html;
+      pendingCount.innerText = pending;
+      approvedCount.innerText = approved;
+      rejectedCount.innerText = rejected;
+      empCount.innerText = Object.keys(empMap).length;
+    });
+}
+
+// UPDATE STATUS
+function updateStatus(id,status){
+  db.collection("leaves").doc(id).update({status});
+}
+
+// LOGOUT
+function logout(){
+  firebase.auth().signOut().then(()=>{
+    window.location.href="login.html";
   });
-};
+}
 
-window.approveLeave = async function (id) {
-  await updateDoc(doc(db, "leaves", id), { status: "Approved" });
-  loadLeaves();
-};
+// PDF
+function downloadPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
-window.rejectLeave = async function (id) {
-  await updateDoc(doc(db, "leaves", id), { status: "Rejected" });
-  loadLeaves();
-};
+  doc.text("Nova Graphics LLP - Leave Report",20,20);
 
-loadLeaves();
+  let y=30;
+  allLeaves.forEach(l=>{
+    doc.text(
+      `${l.empId} | ${l.fromDate} | ${l.toDate} | ${l.status}`,
+      20,y
+    );
+    y+=8;
+  });
+
+  doc.save("Nova_Leave_Report.pdf");
+}
+
+// SEARCH
+document.getElementById("searchEmp").addEventListener("keyup",function(){
+  const v=this.value.toLowerCase();
+  const rows=document.querySelectorAll("#leaveTable tr");
+
+  rows.forEach(r=>{
+    r.style.display = r.innerText.toLowerCase().includes(v) ? "" : "none";
+  });
+});

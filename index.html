@@ -1,12 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Nova Graphics LLP – Cloud Leave System</title>
-<link rel="stylesheet" href="style.css">
+<title>Nova Graphics LLP — Leave Management</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f4f6fb;
+  margin:0;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);
+  color:white;
+  padding:20px;
+  display:flex;
+  align-items:center;
+  gap:15px;
+}
+
+.header img{
+  height:50px;
+}
+
+.card{
+  max-width:500px;
+  margin:40px auto;
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+}
+
+h3{
+  margin-top:0;
+  text-align:center;
+}
+
+input,button{
+  width:100%;
+  padding:12px;
+  margin-top:12px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  font-size:15px;
+}
+
+button{
+  background:#2563eb;
+  color:white;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+button:hover{
+  background:#1d4ed8;
+}
+</style>
 </head>
 
 <body>
@@ -21,12 +75,20 @@
 
 <div class="card">
   <h3>Apply Leave</h3>
+
   <input id="empId" placeholder="Employee ID">
   <input id="fromDate" type="date">
   <input id="toDate" type="date">
+
   <button onclick="applyLeave()">Submit</button>
 </div>
 
+<!-- ✅ Firebase v8 SDK (DO NOT CHANGE) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
 <script src="app.js"></script>
+
 </body>
 </html>

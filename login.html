@@ -2,9 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Nova Graphics LLP — Secure Login</title>
+<title>Nova Graphics LLP – Secure Login</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <link rel="stylesheet" href="style.css">
+
+<style>
+.login-body{
+  background: linear-gradient(135deg,#0f172a,#1e293b);
+  font-family: Arial, sans-serif;
+}
+
+.login-card{
+  width: 360px;
+  margin: 80px auto;
+  background:#fff;
+  padding:30px;
+  border-radius:14px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+}
+
+.logo{
+  width:120px;
+  margin-bottom:10px;
+}
+
+.login-card input{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border:1px solid #ccc;
+  border-radius:8px;
+  font-size:14px;
+}
+
+.login-card button{
+  width:100%;
+  padding:12px;
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.login-card button:hover{
+  background:#1d4ed8;
+}
+</style>
 </head>
 
 <body class="login-body">
@@ -19,8 +66,27 @@
   <button onclick="login()">Secure Login</button>
 </div>
 
+<!-- ✅ Firebase SDK (REQUIRED) -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+<!-- ✅ Your Firebase config -->
 <script src="app.js"></script>
+
+<script>
+function login(){
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+
+  firebase.auth().signInWithEmailAndPassword(email, pass)
+    .then(()=>{
+      window.location.href = "admin.html";
+    })
+    .catch(err=>{
+      alert("Login Failed: " + err.message);
+    });
+}
+</script>
+
 </body>
 </html>

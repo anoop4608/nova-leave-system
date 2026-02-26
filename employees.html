@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova HR — Employee Master</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+
+<body class="admin-body">
+
+<div class="admin-container">
+
+  <h2>👥 Employee Master — Nova HR Ultimate</h2>
+
+  <!-- ================= ADD EMPLOYEE ================= -->
+  <div class="card">
+    <h3>Add Employee</h3>
+
+    <input id="empId" placeholder="Employee ID">
+    <input id="empName" placeholder="Employee Name">
+    <input id="department" placeholder="Department">
+    <input id="annualLeave" type="number" value="24">
+
+    <button onclick="addEmployee()">Add Employee</button>
+  </div>
+
+  <!-- ================= EMPLOYEE TABLE ================= -->
+  <div class="card">
+    <h3>Employee List</h3>
+
+    <table class="pro-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Total Leave</th>
+          <th>Used</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody id="employeeTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script src="employees.js"></script>
+
+</body>
+</html>

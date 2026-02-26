@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Nova Graphics LLP – Cloud Leave System</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+
+<div class="header">
+  <img src="nova_logo.png">
+  <div>
+    <h2>NOVA GRAPHICS LLP</h2>
+    <p>Cloud Leave Management</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Apply Leave</h3>
+  <input id="empId" placeholder="Employee ID">
+  <input id="fromDate" type="date">
+  <input id="toDate" type="date">
+  <button onclick="applyLeave()">Submit</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

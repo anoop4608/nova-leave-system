@@ -1,57 +1,111 @@
-// ======================================
-// NOVA ADMIN DASHBOARD PRO
-// ======================================
+// =====================================
+// NOVA HR ULTIMATE — ADMIN CONTROLLER
+// =====================================
 
-firebase.initializeApp(firebaseConfig);
+// 🔥 Firebase already initialized from app.js
 const db = firebase.firestore();
 
 // ===============================
-// LOAD LEAVES
+// 🚪 LOGOUT
 // ===============================
+function logout() {
+  window.location.href = "login.html";
+}
 
+// ===============================
+// 📊 LOAD LEAVES REALTIME
+// ===============================
 function loadLeaves() {
-  const table = document.getElementById("leaveTable");
-  if (!table) return;
+
+  // 🔢 KPI counters
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
 
   db.collection("leaves")
     .orderBy("created", "desc")
     .onSnapshot(snapshot => {
+
+      const table = document.getElementById("leaveTable");
       table.innerHTML = "";
+
+      // reset counters each refresh
+      pending = 0;
+      approved = 0;
+      rejected = 0;
 
       snapshot.forEach(doc => {
         const d = doc.data();
 
-        table.innerHTML += `
+        // ===============================
+        // 🎯 COUNT STATUS
+        // ===============================
+        if (d.status === "Pending") pending++;
+        if (d.status === "Approved") approved++;
+        if (d.status === "Rejected") rejected++;
+
+        // ===============================
+        // 🧾 TABLE ROW
+        // ===============================
+        const row = `
           <tr>
-            <td>${d.empId}</td>
-            <td>${d.fromDate}</td>
-            <td>${d.toDate}</td>
-            <td>${d.days}</td>
-            <td>${d.status}</td>
+            <td>${d.empId || "-"}</td>
+            <td>${d.fromDate || "-"}</td>
+            <td>${d.toDate || "-"}</td>
+            <td>${d.days || 0}</td>
+            <td><b>${d.status || "Pending"}</b></td>
             <td>
-              <button onclick="approveLeave('${doc.id}')">Approve</button>
-              <button onclick="rejectLeave('${doc.id}')">Reject</button>
+              <button class="btn btn-approve"
+                onclick="updateStatus('${doc.id}','Approved')">
+                Approve
+              </button>
+
+              <button class="btn btn-reject"
+                onclick="updateStatus('${doc.id}','Rejected')">
+                Reject
+              </button>
             </td>
           </tr>
         `;
+
+        table.innerHTML += row;
       });
+
+      // ===============================
+      // 📊 UPDATE KPI UI
+      // ===============================
+      document.getElementById("pendingCount").innerText = pending;
+      document.getElementById("approvedCount").innerText = approved;
+      document.getElementById("rejectedCount").innerText = rejected;
+
+    }, err => {
+      console.error("Realtime error:", err);
+      alert("Error loading leave data");
     });
 }
 
 // ===============================
-// APPROVE / REJECT
+// ✅ UPDATE STATUS
 // ===============================
-
-function approveLeave(id) {
-  db.collection("leaves").doc(id).update({ status: "Approved" });
+function updateStatus(id, status) {
+  db.collection("leaves")
+    .doc(id)
+    .update({
+      status: status,
+      actionTime: new Date()
+    })
+    .then(() => {
+      console.log("Status updated");
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to update status");
+    });
 }
 
-function rejectLeave(id) {
-  db.collection("leaves").doc(id).update({ status: "Rejected" });
-}
-
 // ===============================
-// AUTO LOAD
+// 🚀 AUTO START
 // ===============================
-
-window.onload = loadLeaves;
+window.onload = () => {
+  loadLeaves();
+};

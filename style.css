@@ -26,4 +26,23 @@ input,button{
   width:100%;
   padding:10px;
   margin:6px 0;
+
 }
+.pro-table {
+  width: 100%;
+  margin-top: 15px;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.1);
+}
+
+.pro-table th,
+.pro-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  color: white;
+}
+
+.status-pending { color: #ffd54f; font-weight: 600; }
+.status-approved { color: #00e676; font-weight: 600; }
+.status-rejected { color: #ff5252; font-weight: 600; }

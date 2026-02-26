@@ -1,8 +1,11 @@
 // 🔴 IMPORTANT: Replace with your Firebase config later
 const firebaseConfig = {
-  apiKey: "PASTE_FROM_FIREBASE",
-  authDomain: "PASTE_FROM_FIREBASE",
-  projectId: "PASTE_FROM_FIREBASE"
+  apiKey: "AIzaSyBNM3PhED3Zvc-HnOlbjtiW_8p1yIqNCks",
+  authDomain: "nova-leave-system.firebaseapp.com",
+  projectId: "nova-leave-system",
+  storageBucket: "nova-leave-system.firebasestorage.app",
+  messagingSenderId: "255794827622",
+  appId: "1:255794827622:web:604df9ac7df902c50278a7"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -26,4 +29,5 @@ function applyLeave(){
   });
 
   alert("Leave submitted to cloud ✅");
+
 }

@@ -80,50 +80,58 @@ async function loadEmployees() {
 }
 
 // ===============================
-// LOAD LEAVES
+// LOAD LEAVES — HR AUTOMATION
 // ===============================
 async function loadLeaves() {
   try {
-    const snap = await db.collection("leaves").get();
+    const snapshot = await db.collection("leaves").get();
     const tbody = document.getElementById("leaveTable");
 
     if (!tbody) return;
 
     tbody.innerHTML = "";
 
-    let pending = 0;
-    let approved = 0;
-    let rejected = 0;
+    let pending = 0, approved = 0, rejected = 0;
 
-    snap.forEach(doc => {
-      const l = doc.data();
+    snapshot.forEach(doc => {
+      const data = doc.data();
 
-      if (l.status === "Pending") pending++;
-      if (l.status === "Approved") approved++;
-      if (l.status === "Rejected") rejected++;
+      if (data.status === "Pending") pending++;
+      if (data.status === "Approved") approved++;
+      if (data.status === "Rejected") rejected++;
 
-      tbody.innerHTML += `
+      const row = `
         <tr>
-          <td>${l.empId}</td>
-          <td>${l.fromDate}</td>
-          <td>${l.toDate}</td>
-          <td>${l.days}</td>
-          <td>${l.status}</td>
-          <td>-</td>
+          <td>${data.empId || ""}</td>
+          <td>${data.fromDate || ""}</td>
+          <td>${data.toDate || ""}</td>
+          <td>${data.days || 0}</td>
+          <td>
+            <span class="status-${(data.status || "").toLowerCase()}">
+              ${data.status || ""}
+            </span>
+          </td>
+          <td>
+            ${data.status === "Pending" ? `
+              <button class="btn-approve" onclick="approveLeave('${doc.id}', '${data.empId}', ${data.days})">Approve</button>
+              <button class="btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
+            ` : "-"}
+          </td>
         </tr>
       `;
+
+      tbody.innerHTML += row;
     });
 
     // KPI update
-    document.getElementById("pendingCount").innerText = pending;
-    document.getElementById("approvedCount").innerText = approved;
-    document.getElementById("rejectedCount").innerText = rejected;
+    document.getElementById("pendingCount").textContent = pending;
+    document.getElementById("approvedCount").textContent = approved;
+    document.getElementById("rejectedCount").textContent = rejected;
 
   } catch (err) {
     console.error("Leave load error:", err);
   }
 }
-
 // ===============================
 // PAYSLIP PDF
 // ===============================

@@ -1,135 +1,168 @@
-// ======================================
-// NOVA HR — ADMIN ENGINE
-// ======================================
+// ===============================
+// NOVA HR ULTIMATE — ADMIN ENGINE
+// ===============================
 
-const db = firebase.firestore();
-
-// ================= LOGOUT =================
-function logout(){
-firebase.auth().signOut().then(()=>{
-window.location.href = "login.html";
+document.addEventListener("DOMContentLoaded", () => {
+  loadEmployees();
+  loadLeaves();
 });
+
+// ===============================
+// LOAD EMPLOYEES
+// ===============================
+async function loadEmployees() {
+  try {
+    const snap = await db.collection("employees").get();
+
+    const tbody = document.getElementById("employeeTable");
+    const salaryBody = document.getElementById("salaryTable");
+
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+    salaryBody.innerHTML = "";
+
+    let totalEmployees = 0;
+
+    snap.forEach(doc => {
+      const e = doc.data();
+      totalEmployees++;
+
+      // ===== Employee Master =====
+      tbody.innerHTML += `
+        <tr>
+          <td>${e.empId || ""}</td>
+          <td>${e.name || ""}</td>
+          <td>${e.department || ""}</td>
+          <td>${e.leaveUsed || 0}</td>
+          <td>${e.leaveBalance || 0}</td>
+        </tr>
+      `;
+
+      // ===== Salary Calculation =====
+      const basic = e.basicSalary || 0;
+      const otHours = e.otHours || 0;
+
+      let hourlyRate = 0;
+
+      if (e.otType === "SALARY_BASED") {
+        hourlyRate = basic / 26 / 8;
+      } else {
+        hourlyRate = e.otRate || 0;
+      }
+
+      const otAmount = otHours * hourlyRate;
+      const netSalary = basic + otAmount;
+
+      salaryBody.innerHTML += `
+        <tr>
+          <td>${e.empId}</td>
+          <td>${e.name}</td>
+          <td>₹${basic}</td>
+          <td>${otHours}</td>
+          <td><b>₹${netSalary.toFixed(0)}</b></td>
+          <td>
+            <button class="btn" onclick="generatePayslip('${doc.id}')">
+              PDF
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // KPI
+    const totalBox = document.getElementById("totalEmployees");
+    if (totalBox) totalBox.innerText = totalEmployees;
+
+  } catch (err) {
+    console.error("Employee load error:", err);
+  }
 }
 
-// ================= LOAD DASHBOARD =================
-window.addEventListener("DOMContentLoaded", ()=>{
-loadLeaves();
-loadEmployees();
-loadPayroll();
-});
+// ===============================
+// LOAD LEAVES
+// ===============================
+async function loadLeaves() {
+  try {
+    const snap = await db.collection("leaves").get();
+    const tbody = document.getElementById("leaveTable");
 
-// ================= LOAD LEAVES =================
-function loadLeaves(){
-const table = document.getElementById("leaveTable");
-if(!table) return;
+    if (!tbody) return;
 
-db.collection("leaves").orderBy("created","desc").onSnapshot(snap=>{
-table.innerHTML="";
+    tbody.innerHTML = "";
 
-```
-let p=0,a=0,r=0;
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
 
-snap.forEach(doc=>{
-  const d=doc.data();
+    snap.forEach(doc => {
+      const l = doc.data();
 
-  if(d.status==="Pending") p++;
-  if(d.status==="Approved") a++;
-  if(d.status==="Rejected") r++;
+      if (l.status === "Pending") pending++;
+      if (l.status === "Approved") approved++;
+      if (l.status === "Rejected") rejected++;
 
-  table.innerHTML += `
-    <tr>
-      <td>${d.empId || ""}</td>
-      <td>${d.fromDate || ""}</td>
-      <td>${d.toDate || ""}</td>
-      <td>${d.days || 0}</td>
-      <td class="status-${(d.status||"pending").toLowerCase()}">${d.status}</td>
-      <td>
-        <button class="action-btn btn-approve" onclick="approveLeave('${doc.id}')">Approve</button>
-        <button class="action-btn btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
-      </td>
-    </tr>
-  `;
-});
+      tbody.innerHTML += `
+        <tr>
+          <td>${l.empId}</td>
+          <td>${l.fromDate}</td>
+          <td>${l.toDate}</td>
+          <td>${l.days}</td>
+          <td>${l.status}</td>
+          <td>-</td>
+        </tr>
+      `;
+    });
 
-document.getElementById("pendingCount").innerText=p;
-document.getElementById("approvedCount").innerText=a;
-document.getElementById("rejectedCount").innerText=r;
-```
+    // KPI update
+    document.getElementById("pendingCount").innerText = pending;
+    document.getElementById("approvedCount").innerText = approved;
+    document.getElementById("rejectedCount").innerText = rejected;
 
-});
+  } catch (err) {
+    console.error("Leave load error:", err);
+  }
 }
 
-// ================= LOAD EMPLOYEES =================
-function loadEmployees(){
-const table=document.getElementById("employeeTable");
-if(!table) return;
+// ===============================
+// PAYSLIP PDF
+// ===============================
+async function generatePayslip(docId) {
+  const docSnap = await db.collection("employees").doc(docId).get();
+  const e = docSnap.data();
 
-db.collection("employees").onSnapshot(snap=>{
-table.innerHTML="";
-document.getElementById("employeeCount").innerText=snap.size;
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
 
-```
-snap.forEach(doc=>{
-  const d=doc.data();
+  const basic = e.basicSalary || 0;
+  const otHours = e.otHours || 0;
 
-  table.innerHTML += `
-    <tr>
-      <td>${d.empId||""}</td>
-      <td>${d.name||""}</td>
-      <td>${d.department||""}</td>
-      <td>${d.leaveUsed||0}</td>
-      <td>${d.leaveBalance||0}</td>
-    </tr>
-  `;
-});
-```
+  let hourlyRate =
+    e.otType === "SALARY_BASED"
+      ? basic / 26 / 8
+      : e.otRate || 0;
 
-});
+  const otAmount = otHours * hourlyRate;
+  const netSalary = basic + otAmount;
+
+  pdf.setFontSize(16);
+  pdf.text("NOVA GRAPHICS LLP", 20, 20);
+
+  pdf.setFontSize(12);
+  pdf.text(`Employee: ${e.name}`, 20, 40);
+  pdf.text(`Emp ID: ${e.empId}`, 20, 50);
+  pdf.text(`Department: ${e.department}`, 20, 60);
+
+  pdf.text(`Basic Salary: ₹${basic}`, 20, 80);
+  pdf.text(`OT Hours: ${otHours}`, 20, 90);
+  pdf.text(`Net Salary: ₹${netSalary.toFixed(0)}`, 20, 110);
+
+  pdf.save(`Payslip_${e.empId}.pdf`);
 }
 
-// ================= LOAD PAYROLL =================
-function loadPayroll(){
-const table=document.getElementById("salaryTable");
-if(!table) return;
-
-db.collection("employees").onSnapshot(snap=>{
-table.innerHTML="";
-
-```
-snap.forEach(doc=>{
-  const e=doc.data();
-
-  table.innerHTML += `
-    <tr>
-      <td>${e.empId}</td>
-      <td>${e.name}</td>
-      <td>${e.basicSalary||0}</td>
-      <td>--</td>
-      <td>--</td>
-      <td>
-        <button class="action-btn btn-pdf" onclick="generatePayslip('${doc.id}')">
-          PDF
-        </button>
-      </td>
-    </tr>
-  `;
-});
-```
-
-});
-}
-
-// ================= APPROVE =================
-function approveLeave(id){
-db.collection("leaves").doc(id).update({status:"Approved"});
-}
-
-// ================= REJECT =================
-function rejectLeave(id){
-db.collection("leaves").doc(id).update({status:"Rejected"});
-}
-
-// ================= PAYSLIP =================
-function generatePayslip(empDocId){
-alert("Payslip engine connected. Next step will auto-calc salary.");
+// ===============================
+// LOGOUT
+// ===============================
+function logout() {
+  window.location.href = "login.html";
 }

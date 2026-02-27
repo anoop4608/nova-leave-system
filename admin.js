@@ -3,8 +3,9 @@
 // ===============================
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadEmployees();
   loadLeaves();
+  loadEmployees();
+  loadPayroll(); // if exists
 });
 
 // ===============================

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,105 +9,247 @@
 <link rel="stylesheet" href="style.css">
 
 <!-- Firebase -->
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
 <!-- jsPDF -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f4f6fb;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,#0b2a5b,#1e3c72);
+  color:#fff;
+  padding:18px 30px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.brand img{
+  height:42px;
+}
+
+.logout-btn{
+  background:#ff4d4f;
+  border:none;
+  color:#fff;
+  padding:10px 18px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+/* CONTAINER */
+.container{
+  padding:25px;
+}
+
+/* KPI CARDS */
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  margin-bottom:25px;
+}
+
+.kpi-card{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.08);
+}
+
+.kpi-title{
+  font-size:13px;
+  color:#777;
+}
+
+.kpi-value{
+  font-size:28px;
+  font-weight:700;
+  margin-top:6px;
+}
+
+/* PANELS */
+.panel{
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:25px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.08);
+}
+
+.panel h3{
+  margin-top:0;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+  font-size:14px;
+}
+
+.status-pending{color:#fa8c16;font-weight:600;}
+.status-approved{color:#2ecc71;font-weight:600;}
+.status-rejected{color:#ff4d4f;font-weight:600;}
+
+.action-btn{
+  padding:6px 10px;
+  margin-right:4px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:12px;
+}
+
+.btn-approve{background:#2ecc71;color:#fff;}
+.btn-reject{background:#ff4d4f;color:#fff;}
+.btn-pdf{background:#1677ff;color:#fff;}
+</style>
+
 </head>
 
 <body>
 
-<!-- ===== HEADER ===== -->
+<!-- ================= HEADER ================= -->
+
 <div class="header">
   <div class="brand">
     <img src="nova_logo.png">
-    <h1>NOVA GRAPHICS LLP — HR ULTIMATE</h1>
+    <div>
+      <div style="font-size:20px;font-weight:700;">NOVA GRAPHICS LLP</div>
+      <div style="font-size:12px;opacity:.85;">Nova HR Ultimate — Admin Dashboard</div>
+    </div>
   </div>
 
-  <button class="logout-btn" onclick="logout()">Logout</button>
+<button class="logout-btn" onclick="logout()">Logout</button>
+
 </div>
 
 <div class="container">
 
-  <!-- ===== KPI CARDS ===== -->
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-title">Pending Leaves</div>
-      <div class="kpi-value" id="pendingCount">0</div>
-    </div>
+<!-- ================= KPI ================= -->
 
-    <div class="kpi-card">
-      <div class="kpi-title">Approved Leaves</div>
-      <div class="kpi-value" id="approvedCount">0</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-title">Rejected Leaves</div>
-      <div class="kpi-value" id="rejectedCount">0</div>
-    </div>
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-title">Pending Leaves</div>
+    <div class="kpi-value" id="pendingCount">0</div>
   </div>
 
-  <!-- ===== LEAVE MANAGEMENT ===== -->
-  <div class="card">
-    <h2>🧾 Leave Management Center</h2>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Employee</th>
-          <th>From</th>
-          <th>To</th>
-          <th>Days</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="leaveTable"></tbody>
-    </table>
+  <div class="kpi-card">
+    <div class="kpi-title">Approved Leaves</div>
+    <div class="kpi-value" id="approvedCount">0</div>
   </div>
 
-  <!-- ===================================================== -->
-  <!-- 💰 SALARY & PAYSLIP ENGINE (ENTERPRISE PANEL) -->
-  <!-- ===================================================== -->
-  <div class="card">
-    <h2>💰 Salary & Payslip Engine</h2>
-
-    <div class="grid-3">
-      <select id="payEmp" onchange="updateOTRate()"></select>
-      <input type="month" id="payMonth">
-      <input type="number" id="otHours" placeholder="OT Hours">
-    </div>
-
-    <div class="grid-3" style="margin-top:12px;">
-      <select id="otType" onchange="updateOTRate()">
-        <option value="SALARY_BASED">OT — Salary Based</option>
-        <option value="RR_FIXED">OT — RR Fixed</option>
-      </select>
-
-      <input id="otRate" placeholder="OT Rate" readonly>
-
-      <input id="rrRate"
-             placeholder="Enter RR Rate"
-             style="display:none"
-             oninput="updateOTRate()">
-    </div>
-
-    <div style="margin-top:16px;">
-      <button class="btn btn-approve" onclick="generatePayroll()">
-        🚀 Generate Salary & Payslip
-      </button>
-    </div>
+  <div class="kpi-card">
+    <div class="kpi-title">Rejected Leaves</div>
+    <div class="kpi-value" id="rejectedCount">0</div>
   </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Total Employees</div>
+    <div class="kpi-value" id="employeeCount">0</div>
+  </div>
+</div>
+
+<!-- ================= LEAVE PANEL ================= -->
+
+<div class="panel">
+  <h3>📋 Leave Requests</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Days</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="leaveTable"></tbody>
+  </table>
+</div>
+
+<!-- ================= EMPLOYEE PANEL ================= -->
+
+<div class="panel">
+  <h3>👥 Employee Master & Leave Balance</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Emp ID</th>
+        <th>Name</th>
+        <th>Department</th>
+        <th>Leave Used</th>
+        <th>Leave Balance</th>
+      </tr>
+    </thead>
+    <tbody id="employeeTable"></tbody>
+  </table>
+</div>
+
+<!-- ================= PAYROLL PANEL ================= -->
+
+<div class="panel">
+  <h3>💰 Salary & Payslip Engine</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Emp ID</th>
+        <th>Name</th>
+        <th>Basic</th>
+        <th>OT Hours</th>
+        <th>Net Salary</th>
+        <th>Payslip</th>
+      </tr>
+    </thead>
+    <tbody id="salaryTable"></tbody>
+  </table>
+</div>
 
 </div>
 
-<!-- CORE SCRIPTS -->
+<!-- ================= CORE SCRIPTS (CRITICAL) ================= -->
+
 <script src="app.js"></script>
+
 <script src="admin.js"></script>
+
 <script src="hrms.js"></script>
+
+<script src="payroll.js"></script>
+
+<script src="attendance.js"></script>
 
 </body>
 </html>
-```

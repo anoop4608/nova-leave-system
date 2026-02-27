@@ -1,205 +1,234 @@
-// ========================================
-// NOVA HR ULTIMATE — ADMIN ENGINE (FINAL)
-// ========================================
+// ============================================
+// NOVA HR ULTIMATE — ADMIN ENGINE
+// ============================================
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await refreshAll();
-});
+const pendingCount = document.getElementById("pendingCount");
+const approvedCount = document.getElementById("approvedCount");
+const rejectedCount = document.getElementById("rejectedCount");
+const employeeCount = document.getElementById("employeeCount");
 
-// ========================================
-// MASTER REFRESH (VERY IMPORTANT)
-// ========================================
-
-async function refreshAll() {
-  await loadKPIs();
-  await loadLeaves();
-  await loadEmployees();
-  await loadPayroll();
-}
-
-// ========================================
-// KPI LOADER
-// ========================================
-
-async function loadKPIs() {
-  const leavesSnap = await db.collection("leaves").get();
-  const empSnap = await db.collection("employees").get();
-
-  let pending = 0,
-    approved = 0,
-    rejected = 0;
-
-  leavesSnap.forEach(doc => {
-    const s = doc.data().status;
-
-    if (s === "Pending") pending++;
-    if (s === "Approved") approved++;
-    if (s === "Rejected") rejected++;
-  });
-
-  document.getElementById("pendingCount").innerText = pending;
-  document.getElementById("approvedCount").innerText = approved;
-  document.getElementById("rejectedCount").innerText = rejected;
-  document.getElementById("totalEmployees").innerText = empSnap.size;
-}
-
-// ========================================
+// ============================================
 // LOAD LEAVES
-// ========================================
-
+// ============================================
 async function loadLeaves() {
-  const tbody = document.getElementById("leaveTable");
-  if (!tbody) return;
+  try {
+    const tbody = document.getElementById("leaveTableBody");
+    if (!tbody) return;
 
-  tbody.innerHTML = "";
+    tbody.innerHTML = "";
 
-  const snap = await db.collection("leaves").get();
+    let p = 0, a = 0, r = 0;
 
-  snap.forEach(doc => {
-    const d = doc.data();
+    const snapshot = await db.collection("leaves").get();
 
-    const tr = document.createElement("tr");
+    snapshot.forEach(doc => {
+      const leave = doc.data();
 
-    tr.innerHTML = `
-      <td>${d.empId}</td>
-      <td>${d.fromDate}</td>
-      <td>${d.toDate}</td>
-      <td>${d.days}</td>
-      <td>${d.status}</td>
-      <td>
-        ${
-          d.status === "Pending"
-            ? `
-          <button class="btn-approve"
-            onclick="approveLeave('${doc.id}', '${d.empId}', ${d.days})">
-            Approve
-          </button>
-          <button class="btn-reject"
-            onclick="rejectLeave('${doc.id}')">
-            Reject
-          </button>
-        `
-            : "-"
-        }
-      </td>
-    `;
+      if (leave.status === "Pending") p++;
+      if (leave.status === "Approved") a++;
+      if (leave.status === "Rejected") r++;
 
-    tbody.appendChild(tr);
-  });
+      const tr = document.createElement("tr");
+
+      let actionBtns = "-";
+
+      if (leave.status === "Pending") {
+        actionBtns = `
+          <button class="btn-approve" onclick="approveLeave('${doc.id}','${leave.empId}',${leave.days})">Approve</button>
+          <button class="btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
+        `;
+      }
+
+      tr.innerHTML = `
+        <td>${leave.empId}</td>
+        <td>${leave.from}</td>
+        <td>${leave.to}</td>
+        <td>${leave.days}</td>
+        <td>${leave.status}</td>
+        <td>${actionBtns}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    pendingCount.innerText = p;
+    approvedCount.innerText = a;
+    rejectedCount.innerText = r;
+
+  } catch (err) {
+    console.error("Leave load error:", err);
+  }
 }
 
-// ========================================
-// APPROVE LEAVE (ENTERPRISE)
-// ========================================
-
-window.approveLeave = async function (leaveId, empId, days) {
+// ============================================
+// APPROVE LEAVE + AUTO BALANCE UPDATE
+// ============================================
+async function approveLeave(leaveId, empId, days) {
   try {
-    // 1️⃣ update leave status
     await db.collection("leaves").doc(leaveId).update({
       status: "Approved"
     });
 
-    // 2️⃣ update employee balance
-    const empSnap = await db
-      .collection("employees")
+    const empSnap = await db.collection("employees")
       .where("empId", "==", empId)
       .get();
 
-    if (!empSnap.empty) {
-      const ref = empSnap.docs[0].ref;
-      const data = empSnap.docs[0].data();
+    empSnap.forEach(async doc => {
+      const emp = doc.data();
 
-      await ref.update({
-        leaveUsed: (data.leaveUsed || 0) + days,
-        leaveBalance: (data.leaveBalance || 0) - days
+      const used = (emp.leaveUsed || 0) + Number(days);
+      const balance = (emp.leaveBalance || 0) - Number(days);
+
+      await db.collection("employees").doc(doc.id).update({
+        leaveUsed: used,
+        leaveBalance: balance
       });
-    }
+    });
 
     alert("✅ Leave Approved & Balance Updated");
 
-    // ⭐⭐⭐ CRITICAL — FULL REFRESH
-    await refreshAll();
+    loadLeaves();
+    loadEmployees();
+    loadPayrollTable();
 
   } catch (err) {
-    console.error(err);
-    alert("Approval failed");
+    console.error("Approve error:", err);
   }
-};
+}
 
-// ========================================
+// ============================================
 // REJECT LEAVE
-// ========================================
-
-window.rejectLeave = async function (leaveId) {
-  await db.collection("leaves").doc(leaveId).update({
+// ============================================
+async function rejectLeave(id) {
+  await db.collection("leaves").doc(id).update({
     status: "Rejected"
   });
 
-  await refreshAll();
-};
-
-// ========================================
-// LOAD EMPLOYEES
-// ========================================
-
-async function loadEmployees() {
-  const tbody = document.getElementById("employeeTable");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  const snap = await db.collection("employees").get();
-
-  snap.forEach(doc => {
-    const d = doc.data();
-
-    const tr = document.createElement("tr");
-
-    tr.innerHTML = `
-      <td>${d.empId}</td>
-      <td>${d.name}</td>
-      <td>${d.department}</td>
-      <td>${d.leaveUsed || 0}</td>
-      <td>${d.leaveBalance || 0}</td>
-    `;
-
-    tbody.appendChild(tr);
-  });
+  loadLeaves();
 }
 
-// ========================================
-// LOAD PAYROLL
-// ========================================
+// ============================================
+// LOAD EMPLOYEES MASTER
+// ============================================
+async function loadEmployees() {
+  try {
+    const tbody = document.getElementById("employeeTableBody");
+    if (!tbody) return;
 
-async function loadPayroll() {
-  const tbody = document.getElementById("payrollTable");
-  if (!tbody) return;
+    tbody.innerHTML = "";
 
-  tbody.innerHTML = "";
+    const snapshot = await db.collection("employees").get();
 
-  const snap = await db.collection("employees").get();
+    let count = 0;
 
-  for (const doc of snap.docs) {
-    const emp = doc.data();
+    snapshot.forEach(doc => {
+      const emp = doc.data();
+      count++;
 
-    const salary = await window.calculateNetSalary(emp);
+      const tr = document.createElement("tr");
 
-    const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${emp.empId}</td>
+        <td>${emp.name}</td>
+        <td>${emp.department}</td>
+        <td>${emp.leaveUsed || 0}</td>
+        <td>${emp.leaveBalance || 0}</td>
+      `;
 
-    tr.innerHTML = `
-      <td>${emp.empId}</td>
-      <td>${emp.name}</td>
-      <td>₹${emp.basicSalary}</td>
-      <td>${salary.totalOT}</td>
-      <td><b>₹${salary.netSalary}</b></td>
-      <td>
-        <button class="btn-approve"
-          onclick='generatePayslip(${JSON.stringify(emp)})'>
-          Payslip
-        </button>
-      </td>
-    `;
+      tbody.appendChild(tr);
+    });
 
-    tbody.appendChild(tr);
+    if (employeeCount) employeeCount.innerText = count;
+
+  } catch (err) {
+    console.error("Employee load error:", err);
   }
 }
+
+// ============================================
+// PAYROLL ENGINE
+// ============================================
+async function loadPayrollTable() {
+  try {
+    const tbody = document.getElementById("payrollTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    const snapshot = await db.collection("employees").get();
+
+    snapshot.forEach(doc => {
+      const emp = doc.data();
+
+      const basic = Number(emp.basicSalary || 0);
+      const present = Number(emp.presentDays || 0);
+      const otHours = Number(emp.otHours || 0);
+      const rrHours = Number(emp.rrHours || 0);
+      const otRate = Number(emp.otRate || 0);
+
+      // ✅ per day salary
+      const perDay = basic / 26;
+
+      // ✅ attendance salary
+      let salary = perDay * present;
+
+      // ✅ OT calculation (2 modes)
+      let otPay = 0;
+
+      if (emp.otType === "SALARY_BASED") {
+        const hourly = basic / 26 / 8;
+        otPay = hourly * otHours;
+      } else {
+        otPay = otRate * rrHours;
+      }
+
+      let netSalary = salary + otPay;
+
+      // 🛡️ never negative
+      netSalary = Math.max(0, Math.round(netSalary));
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${emp.empId}</td>
+        <td>${emp.name}</td>
+        <td>${emp.department}</td>
+        <td>₹${basic}</td>
+        <td>${otHours + rrHours}</td>
+        <td>₹${netSalary}</td>
+        <td><button class="btn-payslip" onclick="generatePayslip('${emp.empId}')">Payslip</button></td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error("Payroll error:", err);
+  }
+}
+
+// ============================================
+// PAYSLIP PDF
+// ============================================
+async function generatePayslip(empId) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text("NOVA GRAPHICS LLP", 20, 20);
+
+  doc.setFontSize(12);
+  doc.text("Salary Payslip", 20, 30);
+  doc.text("Employee ID: " + empId, 20, 45);
+
+  doc.save("Nova_Payslip_" + empId + ".pdf");
+}
+
+// ============================================
+// AUTO LOAD
+// ============================================
+document.addEventListener("DOMContentLoaded", () => {
+  loadLeaves();
+  loadEmployees();
+  loadPayrollTable();
+});

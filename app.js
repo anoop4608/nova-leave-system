@@ -1,7 +1,9 @@
-```javascript
-// ===============================
-// NOVA HRMS — CORE CONFIG
-// ===============================
+// ==========================================
+// NOVA HRMS — FIREBASE CORE CONFIG
+// ==========================================
+
+// 🔴 STEP 1 — PASTE YOUR FIREBASE CONFIG HERE
+// (from Firebase → Project Settings → Web App)
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNM3PhED3Zvc-HnOlbjtiW_8p1yIqNCks",
@@ -12,58 +14,116 @@ const firebaseConfig = {
   appId: "1:255794827622:web:604df9ac7df902c50278a7"
 };
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+// ==========================================
+// 🔥 INITIALIZE FIREBASE
+// ==========================================
 
+firebase.initializeApp(firebaseConfig);
+
+// ==========================================
+// 🔥 INITIALIZE SERVICES (VERY IMPORTANT)
+// ==========================================
+
+// ✅ Firestore Database (GLOBAL)
 const db = firebase.firestore();
+window.db = db;
 
-// ===============================
-// LOGIN
-// ===============================
-function login() {
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
+// ✅ Firebase Auth (GLOBAL)
+const auth = firebase.auth();
+window.auth = auth;
 
-  firebase.auth().signInWithEmailAndPassword(email, pass)
-    .then(() => window.location.href = "admin.html")
-    .catch(e => alert(e.message));
-}
+// ==========================================
+// 🔐 ADMIN LOGIN FUNCTION
+// ==========================================
 
-// ===============================
-// LOGOUT
-// ===============================
-function logout() {
-  firebase.auth().signOut().then(() => {
-    window.location.href = "login.html";
-  });
-}
+window.login = async function () {
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
 
-// ===============================
-// APPLY LEAVE
-// ===============================
-function applyLeave() {
-  const emp = empId.value;
-  const from = fromDate.value;
-  const to = toDate.value;
-
-  if (!emp || !from || !to) {
-    alert("Fill all fields");
+  if (!emailInput || !passwordInput) {
+    alert("Login fields not found.");
     return;
   }
 
-  const days = (new Date(to) - new Date(from)) / 86400000 + 1;
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
 
-  db.collection("leaves").add({
-    empId: emp,
-    fromDate: from,
-    toDate: to,
-    days,
-    status: "Pending",
-    created: new Date()
-  }).then(() => {
-    alert("Leave submitted ✅");
-  });
-}
-```
+  if (!email || !password) {
+    alert("Please enter email and password.");
+    return;
+  }
 
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+
+    // ✅ Redirect to admin dashboard
+    window.location.href = "admin.html";
+
+  } catch (error) {
+    console.error("Login Error:", error);
+    alert("Login Failed: " + error.message);
+  }
+};
+
+// ==========================================
+// 🚪 LOGOUT FUNCTION
+// ==========================================
+
+window.logout = async function () {
+  try {
+    await auth.signOut();
+    window.location.href = "login.html";
+  } catch (error) {
+    console.error("Logout Error:", error);
+  }
+};
+
+// ==========================================
+// 🛡️ AUTH GUARD (AUTO PROTECT ADMIN)
+// ==========================================
+
+auth.onAuthStateChanged(function (user) {
+  const isLoginPage = window.location.pathname.includes("login.html");
+
+  // If not logged in and not on login page → redirect
+  if (!user && !isLoginPage) {
+    window.location.href = "login.html";
+  }
+});
+
+// ==========================================
+// 📊 UTILITY — FORMAT DATE
+// ==========================================
+
+window.formatDate = function (dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-IN");
+};
+
+// ==========================================
+// 💰 OT CALCULATION HELPER
+// ==========================================
+
+window.calculateOTAmount = function (employee, otHours) {
+  if (!employee) return 0;
+
+  const rate = Number(employee.otRate || 0);
+  const type = employee.otType || "SALARY_BASED";
+
+  // Salary based OT
+  if (type === "SALARY_BASED") {
+    const basic = Number(employee.basicSalary || 0);
+    const hourly = basic / 26 / 8; // 26 days, 8 hours
+    return Math.round(hourly * otHours);
+  }
+
+  // Fixed rate OT
+  return Math.round(rate * otHours);
+};
+
+// ==========================================
+// ✅ SYSTEM READY LOG
+// ==========================================
+
+console.log("✅ Nova HR Ultimate — Firebase Connected");

@@ -174,3 +174,58 @@ async function generatePayslip(docId) {
 function logout() {
   window.location.href = "login.html";
 }
+// ===============================
+// APPROVE LEAVE + AUTO BALANCE CUT
+// ===============================
+async function approveLeave(leaveId, empId, days) {
+  try {
+    // 1. update leave status
+    await db.collection("leaves").doc(leaveId).update({
+      status: "Approved"
+    });
+
+    // 2. get employee
+    const empSnap = await db.collection("employees")
+      .where("empId", "==", empId)
+      .get();
+
+    if (!empSnap.empty) {
+      const empDoc = empSnap.docs[0];
+      const empData = empDoc.data();
+
+      const newUsed = (empData.leaveUsed || 0) + Number(days);
+      const newBalance = (empData.leaveBalance || 0) - Number(days);
+
+      await db.collection("employees").doc(empDoc.id).update({
+        leaveUsed: newUsed,
+        leaveBalance: newBalance
+      });
+    }
+
+    alert("✅ Leave Approved & Balance Updated");
+
+    loadLeaves();
+    loadEmployees();
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Approval failed");
+  }
+}
+
+// ===============================
+// REJECT LEAVE
+// ===============================
+async function rejectLeave(leaveId) {
+  try {
+    await db.collection("leaves").doc(leaveId).update({
+      status: "Rejected"
+    });
+
+    alert("❌ Leave Rejected");
+    loadLeaves();
+
+  } catch (err) {
+    console.error(err);
+  }
+}

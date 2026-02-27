@@ -1,234 +1,197 @@
-// ============================================
-// NOVA HR ULTIMATE — ADMIN ENGINE
-// ============================================
+// ================= GLOBAL =================
+let payrollLocked = false;
 
-const pendingCount = document.getElementById("pendingCount");
-const approvedCount = document.getElementById("approvedCount");
-const rejectedCount = document.getElementById("rejectedCount");
-const employeeCount = document.getElementById("employeeCount");
+// ================= INIT =================
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadLockStatus();
+  initMonthYear();
+  loadEmployees();
+});
 
-// ============================================
-// LOAD LEAVES
-// ============================================
-async function loadLeaves() {
-  try {
-    const tbody = document.getElementById("leaveTableBody");
-    if (!tbody) return;
+// ================= MONTH YEAR =================
+function initMonthYear(){
+  const m = document.getElementById("payMonth");
+  const y = document.getElementById("payYear");
 
-    tbody.innerHTML = "";
-
-    let p = 0, a = 0, r = 0;
-
-    const snapshot = await db.collection("leaves").get();
-
-    snapshot.forEach(doc => {
-      const leave = doc.data();
-
-      if (leave.status === "Pending") p++;
-      if (leave.status === "Approved") a++;
-      if (leave.status === "Rejected") r++;
-
-      const tr = document.createElement("tr");
-
-      let actionBtns = "-";
-
-      if (leave.status === "Pending") {
-        actionBtns = `
-          <button class="btn-approve" onclick="approveLeave('${doc.id}','${leave.empId}',${leave.days})">Approve</button>
-          <button class="btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
-        `;
-      }
-
-      tr.innerHTML = `
-        <td>${leave.empId}</td>
-        <td>${leave.from}</td>
-        <td>${leave.to}</td>
-        <td>${leave.days}</td>
-        <td>${leave.status}</td>
-        <td>${actionBtns}</td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-    pendingCount.innerText = p;
-    approvedCount.innerText = a;
-    rejectedCount.innerText = r;
-
-  } catch (err) {
-    console.error("Leave load error:", err);
-  }
-}
-
-// ============================================
-// APPROVE LEAVE + AUTO BALANCE UPDATE
-// ============================================
-async function approveLeave(leaveId, empId, days) {
-  try {
-    await db.collection("leaves").doc(leaveId).update({
-      status: "Approved"
-    });
-
-    const empSnap = await db.collection("employees")
-      .where("empId", "==", empId)
-      .get();
-
-    empSnap.forEach(async doc => {
-      const emp = doc.data();
-
-      const used = (emp.leaveUsed || 0) + Number(days);
-      const balance = (emp.leaveBalance || 0) - Number(days);
-
-      await db.collection("employees").doc(doc.id).update({
-        leaveUsed: used,
-        leaveBalance: balance
-      });
-    });
-
-    alert("✅ Leave Approved & Balance Updated");
-
-    loadLeaves();
-    loadEmployees();
-    loadPayrollTable();
-
-  } catch (err) {
-    console.error("Approve error:", err);
-  }
-}
-
-// ============================================
-// REJECT LEAVE
-// ============================================
-async function rejectLeave(id) {
-  await db.collection("leaves").doc(id).update({
-    status: "Rejected"
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  months.forEach((mo,i)=>{
+    m.innerHTML += `<option value="${i+1}">${mo}</option>`;
   });
 
-  loadLeaves();
-}
-
-// ============================================
-// LOAD EMPLOYEES MASTER
-// ============================================
-async function loadEmployees() {
-  try {
-    const tbody = document.getElementById("employeeTableBody");
-    if (!tbody) return;
-
-    tbody.innerHTML = "";
-
-    const snapshot = await db.collection("employees").get();
-
-    let count = 0;
-
-    snapshot.forEach(doc => {
-      const emp = doc.data();
-      count++;
-
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${emp.empId}</td>
-        <td>${emp.name}</td>
-        <td>${emp.department}</td>
-        <td>${emp.leaveUsed || 0}</td>
-        <td>${emp.leaveBalance || 0}</td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-    if (employeeCount) employeeCount.innerText = count;
-
-  } catch (err) {
-    console.error("Employee load error:", err);
+  const year = new Date().getFullYear();
+  for(let i=year-2;i<=year+2;i++){
+    y.innerHTML += `<option value="${i}">${i}</option>`;
   }
+
+  m.value = new Date().getMonth()+1;
+  y.value = year;
 }
 
-// ============================================
-// PAYROLL ENGINE
-// ============================================
-async function loadPayrollTable() {
-  try {
-    const tbody = document.getElementById("payrollTableBody");
-    if (!tbody) return;
-
-    tbody.innerHTML = "";
-
-    const snapshot = await db.collection("employees").get();
-
-    snapshot.forEach(doc => {
-      const emp = doc.data();
-
-      const basic = Number(emp.basicSalary || 0);
-      const present = Number(emp.presentDays || 0);
-      const otHours = Number(emp.otHours || 0);
-      const rrHours = Number(emp.rrHours || 0);
-      const otRate = Number(emp.otRate || 0);
-
-      // ✅ per day salary
-      const perDay = basic / 26;
-
-      // ✅ attendance salary
-      let salary = perDay * present;
-
-      // ✅ OT calculation (2 modes)
-      let otPay = 0;
-
-      if (emp.otType === "SALARY_BASED") {
-        const hourly = basic / 26 / 8;
-        otPay = hourly * otHours;
-      } else {
-        otPay = otRate * rrHours;
-      }
-
-      let netSalary = salary + otPay;
-
-      // 🛡️ never negative
-      netSalary = Math.max(0, Math.round(netSalary));
-
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${emp.empId}</td>
-        <td>${emp.name}</td>
-        <td>${emp.department}</td>
-        <td>₹${basic}</td>
-        <td>${otHours + rrHours}</td>
-        <td>₹${netSalary}</td>
-        <td><button class="btn-payslip" onclick="generatePayslip('${emp.empId}')">Payslip</button></td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-  } catch (err) {
-    console.error("Payroll error:", err);
-  }
-}
-
-// ============================================
-// PAYSLIP PDF
-// ============================================
-async function generatePayslip(empId) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  doc.setFontSize(16);
-  doc.text("NOVA GRAPHICS LLP", 20, 20);
-
-  doc.setFontSize(12);
-  doc.text("Salary Payslip", 20, 30);
-  doc.text("Employee ID: " + empId, 20, 45);
-
-  doc.save("Nova_Payslip_" + empId + ".pdf");
-}
-
-// ============================================
-// AUTO LOAD
-// ============================================
-document.addEventListener("DOMContentLoaded", () => {
-  loadLeaves();
+// ================= LOCK SYSTEM =================
+async function lockPayroll(){
+  await db.collection("settings").doc("payroll").set({locked:true});
+  payrollLocked = true;
+  alert("🔒 Payroll Locked");
   loadEmployees();
-  loadPayrollTable();
-});
+}
+
+async function unlockPayroll(){
+  await db.collection("settings").doc("payroll").set({locked:false});
+  payrollLocked = false;
+  alert("🔓 Payroll Unlocked");
+  loadEmployees();
+}
+
+async function loadLockStatus(){
+  try{
+    const doc = await db.collection("settings").doc("payroll").get();
+    payrollLocked = doc.exists ? doc.data().locked : false;
+  }catch(e){
+    payrollLocked = false;
+  }
+}
+
+// ================= LOAD EMPLOYEES =================
+async function loadEmployees(){
+  const snap = await db.collection("employees").get();
+
+  const attBody = document.getElementById("attendanceBody");
+  const salBody = document.getElementById("salaryBody");
+
+  attBody.innerHTML="";
+  salBody.innerHTML="";
+
+  snap.forEach(doc=>{
+    const e = doc.data();
+    const id = doc.id;
+
+    const present = e.presentDays || 0;
+    const sunday = e.sundayWorking || 0;
+    const holiday = e.holidayWorking || 0;
+    const ot = e.otHours || 0;
+    const rr = e.rrHours || 0;
+
+    // ===== Attendance Row =====
+    attBody.innerHTML += `
+      <tr>
+        <td>${e.empId || "-"}</td>
+        <td>${e.name || "-"}</td>
+        <td><input id="p_${id}" value="${present}" ${payrollLocked?"disabled":""}></td>
+        <td><input id="s_${id}" value="${sunday}" ${payrollLocked?"disabled":""}></td>
+        <td><input id="h_${id}" value="${holiday}" ${payrollLocked?"disabled":""}></td>
+        <td><input id="ot_${id}" value="${ot}" ${payrollLocked?"disabled":""}></td>
+        <td><input id="rr_${id}" value="${rr}" ${payrollLocked?"disabled":""}></td>
+        <td>
+          <button onclick="saveAttendance('${id}')" ${payrollLocked?"disabled":""}>
+            Save
+          </button>
+        </td>
+      </tr>
+    `;
+
+    // ===== Salary Calculation =====
+    const perDay = (e.basicSalary || 0) / 26;
+
+    const salary =
+      perDay * present +
+      perDay * sunday +
+      perDay * holiday +
+      ot * (e.otRate || 0) +
+      rr * (e.rrRate || 0);
+
+    // ===== Salary Row =====
+    salBody.innerHTML += `
+      <tr>
+        <td>${e.empId || "-"}</td>
+        <td>${e.name || "-"}</td>
+        <td>${e.department || "-"}</td>
+        <td>₹${e.basicSalary || 0}</td>
+        <td><b>₹${Math.round(salary)}</b></td>
+        <td>
+          <button onclick="generatePayslip('${id}')">
+            Payslip
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+// ================= SAVE ATTENDANCE =================
+async function saveAttendance(id){
+  if(payrollLocked){
+    alert("Payroll Locked");
+    return;
+  }
+
+  await db.collection("employees").doc(id).update({
+    presentDays:Number(document.getElementById("p_"+id).value),
+    sundayWorking:Number(document.getElementById("s_"+id).value),
+    holidayWorking:Number(document.getElementById("h_"+id).value),
+    otHours:Number(document.getElementById("ot_"+id).value),
+    rrHours:Number(document.getElementById("rr_"+id).value)
+  });
+
+  alert("✅ Attendance Saved");
+  loadEmployees();
+}
+
+// ================= PAYSLIP =================
+async function generatePayslip(id){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  const snap = await db.collection("employees").doc(id).get();
+  const e = snap.data();
+
+  const perDay = (e.basicSalary || 0) / 26;
+
+  const salary =
+    perDay * (e.presentDays||0) +
+    perDay * (e.sundayWorking||0) +
+    perDay * (e.holidayWorking||0) +
+    (e.otHours||0) * (e.otRate||0) +
+    (e.rrHours||0) * (e.rrRate||0);
+
+  pdf.setFontSize(16);
+  pdf.text("NOVA GRAPHICS LLP",20,20);
+
+  pdf.setFontSize(12);
+  pdf.text(`Employee: ${e.name}`,20,40);
+  pdf.text(`Department: ${e.department}`,20,50);
+  pdf.text(`Net Salary: ₹${Math.round(salary)}`,20,70);
+
+  pdf.save(`Payslip_${e.empId}.pdf`);
+}
+
+// ================= EXPORT EXCEL =================
+async function exportExcel(){
+  const snap = await db.collection("employees").get();
+
+  let data=[["EmpId","Name","Department","Basic","NetSalary"]];
+
+  snap.forEach(doc=>{
+    const e=doc.data();
+    const perDay=(e.basicSalary||0)/26;
+
+    const salary =
+      perDay*(e.presentDays||0) +
+      perDay*(e.sundayWorking||0) +
+      perDay*(e.holidayWorking||0) +
+      (e.otHours||0)*(e.otRate||0) +
+      (e.rrHours||0)*(e.rrRate||0);
+
+    data.push([
+      e.empId,
+      e.name,
+      e.department,
+      e.basicSalary,
+      Math.round(salary)
+    ]);
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Salary Register");
+  XLSX.writeFile(wb,"Nova_Salary_Register.xlsx");
+}

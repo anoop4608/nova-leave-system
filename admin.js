@@ -1,13 +1,21 @@
 // ========================================
-// NOVA HR ULTIMATE — ADMIN ENGINE
+// NOVA HR ULTIMATE — ADMIN ENGINE (FINAL)
 // ========================================
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadKPIs();
-  loadLeaves();
-  loadEmployees();
-  loadPayroll();
+document.addEventListener("DOMContentLoaded", async () => {
+  await refreshAll();
 });
+
+// ========================================
+// MASTER REFRESH (VERY IMPORTANT)
+// ========================================
+
+async function refreshAll() {
+  await loadKPIs();
+  await loadLeaves();
+  await loadEmployees();
+  await loadPayroll();
+}
 
 // ========================================
 // KPI LOADER
@@ -17,10 +25,13 @@ async function loadKPIs() {
   const leavesSnap = await db.collection("leaves").get();
   const empSnap = await db.collection("employees").get();
 
-  let pending = 0, approved = 0, rejected = 0;
+  let pending = 0,
+    approved = 0,
+    rejected = 0;
 
   leavesSnap.forEach(doc => {
     const s = doc.data().status;
+
     if (s === "Pending") pending++;
     if (s === "Approved") approved++;
     if (s === "Rejected") rejected++;
@@ -42,7 +53,7 @@ async function loadLeaves() {
 
   tbody.innerHTML = "";
 
-  const snap = await db.collection("leaves").orderBy("created", "desc").get();
+  const snap = await db.collection("leaves").get();
 
   snap.forEach(doc => {
     const d = doc.data();
@@ -56,12 +67,19 @@ async function loadLeaves() {
       <td>${d.days}</td>
       <td>${d.status}</td>
       <td>
-        ${d.status === "Pending"
-          ? `
-            <button class="btn-approve" onclick="approveLeave('${doc.id}', '${d.empId}', ${d.days})">Approve</button>
-            <button class="btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
-          `
-          : "-"
+        ${
+          d.status === "Pending"
+            ? `
+          <button class="btn-approve"
+            onclick="approveLeave('${doc.id}', '${d.empId}', ${d.days})">
+            Approve
+          </button>
+          <button class="btn-reject"
+            onclick="rejectLeave('${doc.id}')">
+            Reject
+          </button>
+        `
+            : "-"
         }
       </td>
     `;
@@ -71,25 +89,27 @@ async function loadLeaves() {
 }
 
 // ========================================
-// APPROVE LEAVE (AUTO BALANCE UPDATE)
+// APPROVE LEAVE (ENTERPRISE)
 // ========================================
 
 window.approveLeave = async function (leaveId, empId, days) {
   try {
+    // 1️⃣ update leave status
     await db.collection("leaves").doc(leaveId).update({
       status: "Approved"
     });
 
+    // 2️⃣ update employee balance
     const empSnap = await db
       .collection("employees")
       .where("empId", "==", empId)
       .get();
 
     if (!empSnap.empty) {
-      const docRef = empSnap.docs[0].ref;
+      const ref = empSnap.docs[0].ref;
       const data = empSnap.docs[0].data();
 
-      await docRef.update({
+      await ref.update({
         leaveUsed: (data.leaveUsed || 0) + days,
         leaveBalance: (data.leaveBalance || 0) - days
       });
@@ -97,9 +117,8 @@ window.approveLeave = async function (leaveId, empId, days) {
 
     alert("✅ Leave Approved & Balance Updated");
 
-    loadLeaves();
-    loadEmployees();
-    loadKPIs();
+    // ⭐⭐⭐ CRITICAL — FULL REFRESH
+    await refreshAll();
 
   } catch (err) {
     console.error(err);
@@ -116,8 +135,7 @@ window.rejectLeave = async function (leaveId) {
     status: "Rejected"
   });
 
-  loadLeaves();
-  loadKPIs();
+  await refreshAll();
 };
 
 // ========================================
@@ -150,7 +168,7 @@ async function loadEmployees() {
 }
 
 // ========================================
-// LOAD PAYROLL (AUTO SALARY)
+// LOAD PAYROLL
 // ========================================
 
 async function loadPayroll() {

@@ -1,111 +1,135 @@
-// =====================================
-// NOVA HR ULTIMATE — ADMIN CONTROLLER
-// =====================================
+// ======================================
+// NOVA HR — ADMIN ENGINE
+// ======================================
 
-// 🔥 Firebase already initialized from app.js
 const db = firebase.firestore();
 
-// ===============================
-// 🚪 LOGOUT
-// ===============================
-function logout() {
-  window.location.href = "login.html";
+// ================= LOGOUT =================
+function logout(){
+firebase.auth().signOut().then(()=>{
+window.location.href = "login.html";
+});
 }
 
-// ===============================
-// 📊 LOAD LEAVES REALTIME
-// ===============================
-function loadLeaves() {
+// ================= LOAD DASHBOARD =================
+window.addEventListener("DOMContentLoaded", ()=>{
+loadLeaves();
+loadEmployees();
+loadPayroll();
+});
 
-  // 🔢 KPI counters
-  let pending = 0;
-  let approved = 0;
-  let rejected = 0;
+// ================= LOAD LEAVES =================
+function loadLeaves(){
+const table = document.getElementById("leaveTable");
+if(!table) return;
 
-  db.collection("leaves")
-    .orderBy("created", "desc")
-    .onSnapshot(snapshot => {
+db.collection("leaves").orderBy("created","desc").onSnapshot(snap=>{
+table.innerHTML="";
 
-      const table = document.getElementById("leaveTable");
-      table.innerHTML = "";
+```
+let p=0,a=0,r=0;
 
-      // reset counters each refresh
-      pending = 0;
-      approved = 0;
-      rejected = 0;
+snap.forEach(doc=>{
+  const d=doc.data();
 
-      snapshot.forEach(doc => {
-        const d = doc.data();
+  if(d.status==="Pending") p++;
+  if(d.status==="Approved") a++;
+  if(d.status==="Rejected") r++;
 
-        // ===============================
-        // 🎯 COUNT STATUS
-        // ===============================
-        if (d.status === "Pending") pending++;
-        if (d.status === "Approved") approved++;
-        if (d.status === "Rejected") rejected++;
+  table.innerHTML += `
+    <tr>
+      <td>${d.empId || ""}</td>
+      <td>${d.fromDate || ""}</td>
+      <td>${d.toDate || ""}</td>
+      <td>${d.days || 0}</td>
+      <td class="status-${(d.status||"pending").toLowerCase()}">${d.status}</td>
+      <td>
+        <button class="action-btn btn-approve" onclick="approveLeave('${doc.id}')">Approve</button>
+        <button class="action-btn btn-reject" onclick="rejectLeave('${doc.id}')">Reject</button>
+      </td>
+    </tr>
+  `;
+});
 
-        // ===============================
-        // 🧾 TABLE ROW
-        // ===============================
-        const row = `
-          <tr>
-            <td>${d.empId || "-"}</td>
-            <td>${d.fromDate || "-"}</td>
-            <td>${d.toDate || "-"}</td>
-            <td>${d.days || 0}</td>
-            <td><b>${d.status || "Pending"}</b></td>
-            <td>
-              <button class="btn btn-approve"
-                onclick="updateStatus('${doc.id}','Approved')">
-                Approve
-              </button>
+document.getElementById("pendingCount").innerText=p;
+document.getElementById("approvedCount").innerText=a;
+document.getElementById("rejectedCount").innerText=r;
+```
 
-              <button class="btn btn-reject"
-                onclick="updateStatus('${doc.id}','Rejected')">
-                Reject
-              </button>
-            </td>
-          </tr>
-        `;
-
-        table.innerHTML += row;
-      });
-
-      // ===============================
-      // 📊 UPDATE KPI UI
-      // ===============================
-      document.getElementById("pendingCount").innerText = pending;
-      document.getElementById("approvedCount").innerText = approved;
-      document.getElementById("rejectedCount").innerText = rejected;
-
-    }, err => {
-      console.error("Realtime error:", err);
-      alert("Error loading leave data");
-    });
+});
 }
 
-// ===============================
-// ✅ UPDATE STATUS
-// ===============================
-function updateStatus(id, status) {
-  db.collection("leaves")
-    .doc(id)
-    .update({
-      status: status,
-      actionTime: new Date()
-    })
-    .then(() => {
-      console.log("Status updated");
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Failed to update status");
-    });
+// ================= LOAD EMPLOYEES =================
+function loadEmployees(){
+const table=document.getElementById("employeeTable");
+if(!table) return;
+
+db.collection("employees").onSnapshot(snap=>{
+table.innerHTML="";
+document.getElementById("employeeCount").innerText=snap.size;
+
+```
+snap.forEach(doc=>{
+  const d=doc.data();
+
+  table.innerHTML += `
+    <tr>
+      <td>${d.empId||""}</td>
+      <td>${d.name||""}</td>
+      <td>${d.department||""}</td>
+      <td>${d.leaveUsed||0}</td>
+      <td>${d.leaveBalance||0}</td>
+    </tr>
+  `;
+});
+```
+
+});
 }
 
-// ===============================
-// 🚀 AUTO START
-// ===============================
-window.onload = () => {
-  loadLeaves();
-};
+// ================= LOAD PAYROLL =================
+function loadPayroll(){
+const table=document.getElementById("salaryTable");
+if(!table) return;
+
+db.collection("employees").onSnapshot(snap=>{
+table.innerHTML="";
+
+```
+snap.forEach(doc=>{
+  const e=doc.data();
+
+  table.innerHTML += `
+    <tr>
+      <td>${e.empId}</td>
+      <td>${e.name}</td>
+      <td>${e.basicSalary||0}</td>
+      <td>--</td>
+      <td>--</td>
+      <td>
+        <button class="action-btn btn-pdf" onclick="generatePayslip('${doc.id}')">
+          PDF
+        </button>
+      </td>
+    </tr>
+  `;
+});
+```
+
+});
+}
+
+// ================= APPROVE =================
+function approveLeave(id){
+db.collection("leaves").doc(id).update({status:"Approved"});
+}
+
+// ================= REJECT =================
+function rejectLeave(id){
+db.collection("leaves").doc(id).update({status:"Rejected"});
+}
+
+// ================= PAYSLIP =================
+function generatePayslip(empDocId){
+alert("Payslip engine connected. Next step will auto-calc salary.");
+}

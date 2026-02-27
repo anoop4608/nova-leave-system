@@ -1,190 +1,108 @@
-```javascript
-// ==========================================
-// NOVA HR ULTIMATE — PAYROLL ENGINE PRO
-// Nova Graphics LLP
-// ==========================================
+// ========================================
+// NOVA HR ULTIMATE — PAYROLL ENGINE
+// Supports:
+// 1. SALARY_BASED OT
+// 2. FIXED_RATE OT
+// ========================================
 
-// ===== Firebase already initialized in app.js =====
+window.calculateNetSalary = async function (emp) {
+  try {
+    const attendanceSnap = await db
+      .collection("attendance")
+      .where("empId", "==", emp.empId)
+      .get();
 
-let employeesCache = {};
+    let totalOT = 0;
+    let presentDays = 0;
 
-// ==========================================
-// LOAD EMPLOYEES (for dropdown & cache)
-// ==========================================
-function loadEmployees() {
-  db.collection("employees").get().then(snapshot => {
-    const select = document.getElementById("salaryEmpId");
-    if (!select) return;
-
-    select.innerHTML = '<option value="">Select Employee</option>';
-
-    snapshot.forEach(doc => {
-      const e = doc.data();
-      employeesCache[e.empId] = e;
-
-      select.innerHTML += `
-        <option value="${e.empId}">
-          ${e.empId} — ${e.name}
-        </option>
-      `;
+    attendanceSnap.forEach(doc => {
+      const data = doc.data();
+      presentDays += data.present ? 1 : 0;
+      totalOT += Number(data.otHours || 0);
     });
-  });
-}
 
-// ==========================================
-// AUTO CALCULATE OT RATE
-// ==========================================
-function calculateOTRate() {
-  const empId = document.getElementById("salaryEmpId").value;
-  const otType = document.getElementById("otType").value;
-  const rrRateInput = document.getElementById("rrRate");
+    // =============================
+    // OT CALCULATION MODES
+    // =============================
 
-  if (!empId || !employeesCache[empId]) return;
+    let otAmount = 0;
 
-  const salary = employeesCache[empId].salary || 0;
+    if (emp.otType === "SALARY_BASED") {
+      const hourlyRate = emp.basicSalary / 26 / 8;
+      otAmount = hourlyRate * totalOT;
+    } else if (emp.otType === "FIXED_RATE") {
+      otAmount = (emp.otRate || 0) * totalOT;
+    }
 
-  if (otType === "salary") {
-    // salary / 26 days / 8 hours
-    const hourly = salary / 26 / 8;
-    document.getElementById("otRate").value = hourly.toFixed(2);
-    rrRateInput.style.display = "none";
-  }
+    // =============================
+    // ABSENT DEDUCTION
+    // =============================
 
-  if (otType === "rr") {
-    rrRateInput.style.display = "block";
-    document.getElementById("otRate").value = rrRateInput.value || 0;
-  }
-}
+    const perDaySalary = emp.basicSalary / 26;
+    const absentDays = Math.max(0, 26 - presentDays);
+    const deduction = absentDays * perDaySalary;
 
-// ==========================================
-// GENERATE SALARY + OT + LEAVE
-// ==========================================
-function generateSalary() {
-  const empId = document.getElementById("salaryEmpId").value;
-  const month = document.getElementById("salaryMonth").value;
-  const otHours = Number(document.getElementById("otHours").value || 0);
-  const otRate = Number(document.getElementById("otRate").value || 0);
-  const leaveTaken = Number(document.getElementById("leaveTaken").value || 0);
+    const netSalary =
+      emp.basicSalary +
+      otAmount -
+      deduction;
 
-  if (!empId || !employeesCache[empId]) {
-    alert("Select employee");
-    return;
-  }
-
-  const emp = employeesCache[empId];
-  const baseSalary = Number(emp.salary || 0);
-
-  // ===== Leave deduction =====
-  const perDaySalary = baseSalary / 26;
-  const leaveDeduction = leaveTaken * perDaySalary;
-
-  // ===== OT calculation =====
-  const otAmount = otHours * otRate;
-
-  // ===== Net salary =====
-  const netSalary = baseSalary - leaveDeduction + otAmount;
-
-  // ===== Save to Firestore =====
-  db.collection("payroll").add({
-    empId,
-    name: emp.name,
-    department: emp.department || "",
-    month,
-    baseSalary,
-    leaveTaken,
-    leaveDeduction,
-    otHours,
-    otRate,
-    otAmount,
-    netSalary,
-    created: new Date()
-  }).then(() => {
-    alert("Salary generated ✅");
-    downloadPayslip({
-      empId,
-      name: emp.name,
-      department: emp.department || "",
-      month,
-      baseSalary,
-      leaveTaken,
-      leaveDeduction,
-      otHours,
-      otRate,
+    return {
+      netSalary: Math.round(netSalary),
+      totalOT,
+      presentDays,
+      absentDays,
       otAmount,
-      netSalary
-    });
-  });
-}
+      deduction
+    };
 
-// ==========================================
-// PAYSLIP PDF — ULTRA ENTERPRISE
-// ==========================================
-function downloadPayslip(data) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  } catch (error) {
+    console.error("Salary calc error:", error);
+    return {
+      netSalary: emp.basicSalary,
+      totalOT: 0,
+      presentDays: 0,
+      absentDays: 0,
+      otAmount: 0,
+      deduction: 0
+    };
+  }
+};
 
-  let y = 20;
+// ========================================
+// PAYSLIP PDF GENERATOR
+// ========================================
 
-  doc.setFontSize(18);
-  doc.text("NOVA GRAPHICS LLP", 20, y);
+window.generatePayslip = async function (emp) {
+  try {
+    const salary = await window.calculateNetSalary(emp);
 
-  y += 8;
-  doc.setFontSize(12);
-  doc.text("Employee Payslip", 20, y);
-
-  y += 15;
-
-  doc.setFontSize(10);
-  doc.text(`Employee ID: ${data.empId}`, 20, y); y += 6;
-  doc.text(`Name: ${data.name}`, 20, y); y += 6;
-  doc.text(`Department: ${data.department}`, 20, y); y += 6;
-  doc.text(`Month: ${data.month}`, 20, y); y += 10;
-
-  doc.text(`Base Salary: ₹${data.baseSalary}`, 20, y); y += 6;
-  doc.text(`Leave Deduction: ₹${data.leaveDeduction.toFixed(2)}`, 20, y); y += 6;
-  doc.text(`OT Hours: ${data.otHours}`, 20, y); y += 6;
-  doc.text(`OT Amount: ₹${data.otAmount.toFixed(2)}`, 20, y); y += 10;
-
-  doc.setFontSize(14);
-  doc.text(`NET SALARY: ₹${data.netSalary.toFixed(2)}`, 20, y);
-
-  doc.save(`Payslip_${data.empId}_${data.month}.pdf`);
-}
-
-// ==========================================
-// SALARY REGISTER
-// ==========================================
-function downloadSalaryRegister() {
-  db.collection("payroll").get().then(snapshot => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    let y = 20;
-
     doc.setFontSize(16);
-    doc.text("NOVA GRAPHICS LLP — Salary Register", 20, y);
+    doc.text("NOVA GRAPHICS LLP", 20, 20);
 
-    y += 12;
+    doc.setFontSize(12);
+    doc.text("Employee Payslip", 20, 30);
 
-    snapshot.forEach(d => {
-      const p = d.data();
+    doc.text(`Emp ID: ${emp.empId}`, 20, 45);
+    doc.text(`Name: ${emp.name}`, 20, 55);
+    doc.text(`Department: ${emp.department}`, 20, 65);
 
-      doc.setFontSize(10);
-      doc.text(
-        `${p.empId} | ${p.name} | ${p.month} | ₹${p.netSalary.toFixed(0)}`,
-        20,
-        y
-      );
+    doc.text(`Basic Salary: ₹${emp.basicSalary}`, 20, 85);
+    doc.text(`OT Hours: ${salary.totalOT}`, 20, 95);
+    doc.text(`OT Amount: ₹${salary.otAmount}`, 20, 105);
+    doc.text(`Absent Days: ${salary.absentDays}`, 20, 115);
+    doc.text(`Deduction: ₹${salary.deduction}`, 20, 125);
 
-      y += 7;
-    });
+    doc.setFontSize(14);
+    doc.text(`NET SALARY: ₹${salary.netSalary}`, 20, 145);
 
-    doc.save("Salary_Register.pdf");
-  });
-}
+    doc.save(`Payslip_${emp.empId}.pdf`);
 
-// ==========================================
-// INIT
-// ==========================================
-setTimeout(loadEmployees, 1500);
-```
+  } catch (err) {
+    console.error("Payslip error:", err);
+    alert("Payslip generation failed");
+  }
+};
